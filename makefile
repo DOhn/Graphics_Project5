@@ -1,5 +1,5 @@
 all:
-	gcc -o main texdemo.c
+	gcc -o main texdemo.c -lglfw3 -lpthread
 
 run:
 	./main
