@@ -9,10 +9,26 @@
 
 #define GLFW_TRUE 1
 
+// Pie
+const double pi = 3.14;
+// Scale Variables
+double scale = 1;
+double transX = 0;
+double transY = 0;
+// Shear Variables
+double shearX = 0;
+double shearY = 0;
+// Rotation Variables
+double rotate = 0;
+
 typedef struct {
   float Position[2];
   float TexCoord[2];
 } Vertex;
+
+typedef struct {
+  unsigned char r, g, b;
+} Image;
 
 // (-1, 1)  (1, 1)
 // (-1, -1) (1, -1)
@@ -95,6 +111,41 @@ unsigned char image[] = {
   255, 0, 255, 255
 };
 
+// void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+//   if (key == GLFW_KEY_E && action == GLFW_PRESS) {
+//     glRotate(angleRotation, )
+//   }
+// }
+
+void ppm6Reader(Image *buff, FILE *fput, int h, int w) {
+  int total = w * h;
+  int i;
+
+  for(i = 0; i < total; i++) {
+    fread(&buff[i].r, 1, 1, fput);
+    fread(&buff[i].g, 1, 1, fput);
+    fread(&buff[i].b, 1, 1, fput);
+  }
+}
+void ppm3Reader(Image *buff, FILE *fput, int h, int w) {
+  int current, r, g, b, total, i;
+  total = h * w;
+
+  for (i = 0; i < total; i++) {
+    current = fgetc(fput);
+
+    while (current == ' ' || current == '\n') {
+      current = fgetc(fput);
+    }
+    ungetc(current, fput);
+    fscanf(fput, "%d %d %d", &r, &g, &b);
+    buff[i].r = r;
+    buff[i].g = g;
+    buff[i].b = b;
+  }
+}
+
+
 int main(void)
 {
     GLFWwindow* window;
@@ -169,7 +220,7 @@ int main(void)
 			  GL_FALSE,
                           sizeof(Vertex),
 			  (void*) (sizeof(float) * 2));
-    
+
     int image_width = 4;
     int image_height = 4;
 
@@ -179,7 +230,7 @@ int main(void)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA,
 		 GL_UNSIGNED_BYTE, image);
 
     glActiveTexture(GL_TEXTURE0);
@@ -192,6 +243,7 @@ int main(void)
         int width, height;
         mat4x4 m, p, mvp;
 
+        // glfwSetKeyCallback(window, key_callback);
         glfwGetFramebufferSize(window, &width, &height);
         ratio = width / (float) height;
 
@@ -199,9 +251,11 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         mat4x4_identity(m);
-        mat4x4_rotate_Z(m, m, (float) glfwGetTime());
+        //mat4x4_rotate_Z(m, m, (float) glfwGetTime());
         mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
         mat4x4_mul(mvp, p, m);
+
+
 
         glUseProgram(program);
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) mvp);
