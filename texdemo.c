@@ -35,9 +35,12 @@ typedef struct {
 // (-1, -1) (1, -1)
 
 Vertex vertexes[] = {
-  {{1, -1}, {0.99999, 0}},
-  {{1, 1},  {0.99999, 0.99999}},
-  {{-1, 1}, {0, 0.99999}}
+    {{1, -1}, {0.99999, 0.99999}},
+    {{1, 1},  {0.99999, 0}},
+    {{-1, 1}, {0, 0}},
+    {{-1, 1}, {0, 0}},
+    {{-1, -1}, {0, 0.99999}},
+    {{1, -1}, {0.99999, 0.99999}}
 };
 
 static const char* vertex_shader_text =
@@ -131,6 +134,7 @@ void ppm6Reader(Image *buff, FILE *fput, int h, int w) {
     fread(&buff[i].b, 1, 1, fput);
   }
 }
+
 void ppm3Reader(Image *buff, FILE *fput, int h, int w) {
   int current, r, g, b, total, i;
   total = h * w;
@@ -152,7 +156,7 @@ void ppm3Reader(Image *buff, FILE *fput, int h, int w) {
 int main(int argc, char *argv[]) {
     GLFWwindow* window;
     GLuint vertex_buffer, vertex_shader, fragment_shader, program;
-    GLint mvp, vPos;
+    GLint mvpLoc, vPos;
 
     int imgW, imgH;
     int maxCol, type, format;
@@ -233,8 +237,8 @@ int main(int argc, char *argv[]) {
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexes), vertexes, GL_STATIC_DRAW);
 
-    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     program = glCreateProgram();
+    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
     glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
@@ -247,12 +251,12 @@ int main(int argc, char *argv[]) {
     glAttachShader(program, fragment_shader);
     glLinkProgram(program);
 
-    mvp = glGetUniformLocation(program, "MVP");
+    mvpLoc = glGetUniformLocation(program, "MVP");
     vPos = glGetAttribLocation(program, "vPos");
     GLint texCoord = glGetAttribLocation(program, "TexCoordIn");
     GLint tex = glGetUniformLocation(program, "Texture");
 
-    assert(mvp != -1);
+    assert(mvpLoc != -1);
     assert(vPos != -1);
     assert(texCoord != -1);
     assert(tex != -1);
@@ -305,7 +309,7 @@ int main(int argc, char *argv[]) {
         mat4x4_mul(mvp, rhs, t);
 
         glUseProgram(program);
-        glUniformMatrix4fv(mvp, 1, GL_FALSE, (const GLfloat*) mvp);
+        glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, (const GLfloat*) mvp);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
