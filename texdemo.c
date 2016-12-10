@@ -13,6 +13,7 @@
 const double pi = 3.14;
 // Scale Variables
 double scale = 1;
+// Translation Variables
 double transX = 0;
 double transY = 0;
 // Shear Variables
@@ -39,7 +40,7 @@ Vertex vertexes[] = {
   {{-1, 1}, {0, 0.99999}}
 };
 
-static const char* vertex_shader_text =
+static const char* vertex_shader =
 "uniform mat4 MVP;\n"
 "attribute vec2 TexCoordIn;\n"
 "attribute vec2 vPos;\n"
@@ -63,12 +64,6 @@ static void error_callback(int error, const char* description)
     fprintf(stderr, "Error: %s\n", description);
 }
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
-
 void glCompileShaderOrDie(GLuint shader) {
   GLint compiled;
   glCompileShader(shader);
@@ -88,34 +83,45 @@ void glCompileShaderOrDie(GLuint shader) {
   }
 }
 
-// 4 x 4 image..
-unsigned char image[] = {
-  255, 0, 0, 255,
-  255, 0, 0, 255,
-  255, 0, 0, 255,
-  255, 0, 0, 255,
 
-  0, 255, 0, 255,
-  0, 255, 0, 255,
-  0, 255, 0, 255,
-  0, 255, 0, 255,
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    // Escape Command: Q
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
 
-  0, 0, 255, 255,
-  0, 0, 255, 255,
-  0, 0, 255, 255,
-  0, 0, 255, 255,
+      // Scale Commands: Z and X
+      if (key == GLFW_KEY_Z && action == GLFW_PRESS)//
+          scale *= 2;
+      if (key == GLFW_KEY_X && action == GLFW_PRESS)
+          scale *= .5;
 
-  255, 0, 255, 255,
-  255, 0, 255, 255,
-  255, 0, 255, 255,
-  255, 0, 255, 255
-};
+      // Translate Commands: Arrow Up, Arrow Down, Arrow Right, Arrow Left
+      if (key == GLFW_KEY_UP && action == GLFW_PRESS)
+          transY += .1;
+      if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
+          transY -= .1;
+      if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+          transX += .1;
+      if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+          transX -= .1;
 
-// void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-//   if (key == GLFW_KEY_E && action == GLFW_PRESS) {
-//     glRotate(angleRotation, )
-//   }
-// }
+      // SHEAR COMMANDS: W, A, S, D
+      if (key == GLFW_KEY_W && action == GLFW_PRESS)
+          shearY += .1;
+      if (key == GLFW_KEY_S && action == GLFW_PRESS)
+          shearY -= .1;
+      if (key == GLFW_KEY_D && action == GLFW_PRESS)
+          shearX += .1;
+      if (key == GLFW_KEY_A && action == GLFW_PRESS)
+          shearX -= .1;
+
+    // Rotation Commands: , and .
+    if (key == GLFW_KEY_COMMA && action == GLFW_PRESS)
+        rotate += 90*pi/180;
+    if (key == GLFW_KEY_PERIOD && action == GLFW_PRESS)
+        rotate -= 90*pi/180;
+}
 
 void ppm6Reader(Image *buff, FILE *fput, int h, int w) {
   int total = w * h;
@@ -145,18 +151,71 @@ void ppm3Reader(Image *buff, FILE *fput, int h, int w) {
   }
 }
 
-
-int main(void)
-{
+int main(int argc, char *argv[]) {
     GLFWwindow* window;
-    GLuint vertex_buffer, vertex_shader, fragment_shader, program;
-    GLint mvp_location, vpos_location, vcol_location;
+    GLuint vertex_buffer, vertex_shader, fragment_shader, prog;
+    GLint mvp, vPos;
+
+    int imgW, imgH;
+    int maxCol, type, format;
+    FILE *fput;
+    Image *buffer;
 
     glfwSetErrorCallback(error_callback);
 
+    if (argc !=2) {
+        fprintf(stderr, "Error: Wrong number of arguments.");
+        exit(1);
+    }
+
+    fput = fopen(argv[1], "r");
+    if(fput == NULL){
+        fprintf(stderr, "Error: Invalid input file.\r\n");
+        return EXIT_FAILURE;
+    }
+
+    type = getc(fput);
+    if(type != 'P'){
+        fprintf(stderr, "Error: Input File is not a PPM file. \r\n");
+    }
+
+    format = getc(fput);
+    if(!(format != '6'|| format != '3')){
+        fprintf(stderr, "Error: Format of the input file is invalid. \n");
+    }
+
+    type = getc(fput);
+    type = getc(fput);
+    if (type == '#'){
+        while(type != '\n'){
+            type = getc(fput);
+        }
+        printf("%c", type);
+    } else {
+        ungetc(type, fput);
+    }
+
+    fscanf(fput, "%d %d\n%d\n", &imgW, &imgH, &maxCol);
+    if(maxCol >= 256){
+        fprintf(stderr, "Error: These samples are not supported. \r\n");
+        return EXIT_FAILURE;
+    }
+
+    buffer = (Image *)malloc(imgW*imgH*sizeof(Image));
+    if(format == '3'){
+        ppm3Reader(buffer, fput, imgW, imgH);
+    }
+    else if(format == '6'){
+        ppm6Reader(buffer, fput, imgW, imgH);
+    }
+    else{
+        fprintf(stderr, "Error: Invalid format for a PPM. \n");
+        return EXIT_FAILURE;
+    }
+    fclose(fput);
+
     if (!glfwInit())
         exit(EXIT_FAILURE);
-
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
@@ -170,59 +229,41 @@ int main(void)
     glfwSetKeyCallback(window, key_callback);
 
     glfwMakeContextCurrent(window);
-    // gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(1);
-
-    // NOTE: OpenGL error checks have been omitted for brevity
 
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexes), vertexes, GL_STATIC_DRAW);
 
     vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
+    prog = glCreateProgram();
+    fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+
+    glShaderSource(vertex_shader, 1, &vertex_shader, NULL);
     glCompileShaderOrDie(vertex_shader);
 
-    fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
     glCompileShaderOrDie(fragment_shader);
 
-    program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-    // more error checking! glLinkProgramOrDie!
+    glAttachShader(prog, vertex_shader);
+    glAttachShader(prog, fragment_shader);
+    glLinkProgram(prog);
 
-    mvp_location = glGetUniformLocation(program, "MVP");
-    assert(mvp_location != -1);
+    mvp = glGetUniformLocation(prog, "M.V.P");
+    vPos = glGetAttribLocation(prog, "v Pos");
+    GLint texCoord = glGetAttribLocation(prog, "Tex Coord In");
+    GLint tex = glGetUniformLocation(prog, "Texture");
 
-    vpos_location = glGetAttribLocation(program, "vPos");
-    assert(vpos_location != -1);
+    assert(mvp != -1);
+    assert(vPos != -1);
+    assert(texCoord != -1);
+    assert(tex != -1);
 
-    GLint texcoord_location = glGetAttribLocation(program, "TexCoordIn");
-    assert(texcoord_location != -1);
+    glEnableVertexAttribArray(vPos);
+    glVertexAttribPointer(vPos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*) 0);
 
-    GLint tex_location = glGetUniformLocation(program, "Texture");
-    assert(tex_location != -1);
-
-    glEnableVertexAttribArray(vpos_location);
-    glVertexAttribPointer(vpos_location,
-			  2,
-			  GL_FLOAT,
-			  GL_FALSE,
-                          sizeof(Vertex),
-			  (void*) 0);
-
-    glEnableVertexAttribArray(texcoord_location);
-    glVertexAttribPointer(texcoord_location,
-			  2,
-			  GL_FLOAT,
-			  GL_FALSE,
-                          sizeof(Vertex),
-			  (void*) (sizeof(float) * 2));
-
-    int image_width = 4;
-    int image_height = 4;
+    glEnableVertexAttribArray(texCoord);
+    glVertexAttribPointer(texCoord, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*) (sizeof(float) * 2));
 
     GLuint texID;
     glGenTextures(1, &texID);
@@ -230,36 +271,44 @@ int main(void)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA,
-		 GL_UNSIGNED_BYTE, image);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imgW, imgH, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texID);
-    glUniform1i(tex_location, 0);
+    glUniform1i(tex, 0);
 
     while (!glfwWindowShouldClose(window))
     {
         float ratio;
         int width, height;
-        mat4x4 m, p, mvp;
+        mat4x4 r, h, s, t, rh, rhs, mvp;
 
-        // glfwSetKeyCallback(window, key_callback);
         glfwGetFramebufferSize(window, &width, &height);
         ratio = width / (float) height;
 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        mat4x4_identity(m);
-        //mat4x4_rotate_Z(m, m, (float) glfwGetTime());
-        mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-        mat4x4_mul(mvp, p, m);
+        mat4x4_identity(r);
+        mat4x4_rotate_Z(r, r, rotate);
+        mat4x4_identity(h);
+        h[0][1] = shearX;
+        h[1][0] = shearY;
 
+        mat4x4_identity(s);
+        s[0][0] = s[0][0] * scale;
+        s[1][1] = s[1][1] * scale;
 
+        mat4x4_identity(t);
+        mat4x4_translate(t, transX, transY, 0);
 
-        glUseProgram(program);
-        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) mvp);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        mat4x4_mul(rh, r, h);
+        mat4x4_mul(rhs, rh, s);
+        mat4x4_mul(mvp, rhs, t);
+
+        glUseProgram(prog);
+        glUniformMatrix4fv(mvp, 1, GL_FALSE, (const GLfloat*) mvp);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -270,5 +319,3 @@ int main(void)
     glfwTerminate();
     exit(EXIT_SUCCESS);
 }
-
-//! [code]
