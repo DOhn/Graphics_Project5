@@ -10,17 +10,17 @@
 #define GLFW_TRUE 1
 
 // Pie
-const double pi = 3.14;
+const float pi = 3.14;
 // Scale Variables
-double scale = 1;
+float scale = 1;
 // Translation Variables
-double transX = 0;
-double transY = 0;
+float transX = 0;
+float transY = 0;
 // Shear Variables
-double shearX = 0;
-double shearY = 0;
+float shearX = 0;
+float shearY = 0;
 // Rotation Variables
-double rotate = 0;
+float rotate = 0;
 
 typedef struct {
   float Position[2];
@@ -40,7 +40,7 @@ Vertex vertexes[] = {
   {{-1, 1}, {0, 0.99999}}
 };
 
-static const char* vertex_shader =
+static const char* vertex_shader_text =
 "uniform mat4 MVP;\n"
 "attribute vec2 TexCoordIn;\n"
 "attribute vec2 vPos;\n"
@@ -67,9 +67,7 @@ static void error_callback(int error, const char* description)
 void glCompileShaderOrDie(GLuint shader) {
   GLint compiled;
   glCompileShader(shader);
-  glGetShaderiv(shader,
-		GL_COMPILE_STATUS,
-		&compiled);
+  glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
   if (!compiled) {
     GLint infoLen = 0;
     glGetShaderiv(shader,
@@ -153,7 +151,7 @@ void ppm3Reader(Image *buff, FILE *fput, int h, int w) {
 
 int main(int argc, char *argv[]) {
     GLFWwindow* window;
-    GLuint vertex_buffer, vertex_shader, fragment_shader, prog;
+    GLuint vertex_buffer, vertex_shader, fragment_shader, program;
     GLint mvp, vPos;
 
     int imgW, imgH;
@@ -236,23 +234,23 @@ int main(int argc, char *argv[]) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexes), vertexes, GL_STATIC_DRAW);
 
     vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    prog = glCreateProgram();
+    program = glCreateProgram();
     fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
-    glShaderSource(vertex_shader, 1, &vertex_shader, NULL);
+    glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
     glCompileShaderOrDie(vertex_shader);
 
     glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
     glCompileShaderOrDie(fragment_shader);
 
-    glAttachShader(prog, vertex_shader);
-    glAttachShader(prog, fragment_shader);
-    glLinkProgram(prog);
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
 
-    mvp = glGetUniformLocation(prog, "M.V.P");
-    vPos = glGetAttribLocation(prog, "v Pos");
-    GLint texCoord = glGetAttribLocation(prog, "Tex Coord In");
-    GLint tex = glGetUniformLocation(prog, "Texture");
+    mvp = glGetUniformLocation(program, "MVP");
+    vPos = glGetAttribLocation(program, "vPos");
+    GLint texCoord = glGetAttribLocation(program, "TexCoordIn");
+    GLint tex = glGetUniformLocation(program, "Texture");
 
     assert(mvp != -1);
     assert(vPos != -1);
@@ -306,7 +304,7 @@ int main(int argc, char *argv[]) {
         mat4x4_mul(rhs, rh, s);
         mat4x4_mul(mvp, rhs, t);
 
-        glUseProgram(prog);
+        glUseProgram(program);
         glUniformMatrix4fv(mvp, 1, GL_FALSE, (const GLfloat*) mvp);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
