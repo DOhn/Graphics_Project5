@@ -1,11 +1,13 @@
-#include <OpenGL/gl.h>
 #include <GLFW/glfw3.h>
-
-#include "../deps/linmath.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+
+// #include <OpenGL/gl.h>
+// Not needed since it comes with glfw3.h
+#include "linmath.h"
+
+#define GLFW_TRUE 1
 
 typedef struct {
   float Position[2];
